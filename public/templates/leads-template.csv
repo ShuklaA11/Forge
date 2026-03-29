@@ -1,0 +1,2 @@
+first_name,last_name,company,title,role,email,phone,linkedin_url,company_size,company_type,industry,location,source,notes
+Jane,Smith,Acme Corp,VP of Sales,VP,jane@acme.com,555-123-4567,https://linkedin.com/in/janesmith,SIZE_51_200,SMB,SaaS,Austin TX,LINKEDIN,Met at SaaStr conference

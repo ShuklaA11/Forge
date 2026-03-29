@@ -1,0 +1,352 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+enum LeadStatus {
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum CompanySize {
+  SIZE_1_10
+  SIZE_11_50
+  SIZE_51_200
+  SIZE_200_PLUS
+}
+
+enum CompanyType {
+  SMB
+  BANK
+}
+
+enum LeadSource {
+  MANUAL
+  REFERRAL
+  LINKEDIN
+  WEBSITE
+  AI_RESEARCH
+  OTHER
+}
+
+enum DecisionMakerRole {
+  C_SUITE
+  VP
+  DIRECTOR
+  MANAGER
+  OTHER
+}
+
+enum PipelineStage {
+  RESEARCHED
+  CONTACTED
+  RESPONDED
+  MEETING_BOOKED
+  PROPOSAL_SENT
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum Channel {
+  EMAIL
+  LINKEDIN
+  PHONE
+  OTHER
+}
+
+enum TouchpointDirection {
+  OUTBOUND
+  INBOUND
+}
+
+enum TouchpointType {
+  INITIAL
+  FOLLOW_UP
+  REPLY
+  MEETING
+  NOTE
+}
+
+enum SequenceStatus {
+  ACTIVE
+  PAUSED
+  COMPLETED
+  EXHAUSTED
+}
+
+enum ResearchStatus {
+  ACTIVE
+  COMPLETED
+}
+
+enum ProjectCampaignStage {
+  IDEATION
+  PLANNING
+  ACTIVE
+  PAUSED
+  COMPLETED
+}
+
+enum ConversationStage {
+  LEAD
+  INTRO_CALL
+  DEMO
+  PILOT
+  CLOSED
+}
+
+enum CallSentiment {
+  VERY_POSITIVE
+  POSITIVE
+  NEUTRAL
+  NEGATIVE
+  VERY_NEGATIVE
+}
+
+model Project {
+  id            String               @id @default(cuid())
+  name          String
+  description   String?
+  idea          String?
+  approach      String?
+  campaignStage ProjectCampaignStage @default(IDEATION)
+  color         String               @default("#6366f1")
+  status        ProjectStatus        @default(ACTIVE)
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  leads            Lead[]
+  researchSessions ResearchSession[]
+  companySummaries CompanySummary[]
+  projectSummary   ProjectSummary?
+}
+
+model Lead {
+  id            String            @id @default(cuid())
+  projectId     String
+  firstName     String
+  lastName      String
+  company       String
+  title         String?
+  role          DecisionMakerRole @default(OTHER)
+  email         String?
+  phone         String?
+  linkedinUrl   String?
+  companySize   CompanySize?
+  companyType   CompanyType?
+  industry      String?
+  location      String?
+  source        LeadSource        @default(MANUAL)
+  notes         String?
+  priorityScore Int               @default(0)
+  currentStage       PipelineStage      @default(RESEARCHED)
+  conversationStage  ConversationStage  @default(LEAD)
+  status             LeadStatus         @default(ACTIVE)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  stageHistory     LeadStageHistory[]
+  touchpoints      Touchpoint[]
+  outreachSequence OutreachSequence?
+  calls            Call[]
+  reminders        Reminder[]
+
+  @@index([projectId])
+  @@index([priorityScore(sort: Desc)])
+  @@index([currentStage])
+  @@index([status])
+}
+
+model LeadStageHistory {
+  id        String        @id @default(cuid())
+  leadId    String
+  stage     PipelineStage
+  enteredAt DateTime      @default(now())
+  exitedAt  DateTime?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+}
+
+model Touchpoint {
+  id        String              @id @default(cuid())
+  leadId    String
+  channel   Channel
+  direction TouchpointDirection
+  type      TouchpointType
+  subject   String?
+  body      String?
+  sentAt    DateTime            @default(now())
+  gotReply  Boolean             @default(false)
+  notes     String?
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  call Call?
+
+  @@index([leadId])
+  @@index([sentAt(sort: Desc)])
+}
+
+model OutreachSequence {
+  id            String         @id @default(cuid())
+  leadId        String         @unique
+  templateUsed  String?
+  currentStep   Int            @default(1)
+  maxSteps      Int            @default(5)
+  intervalDays  Int            @default(3)
+  nextTouchDate DateTime?
+  status        SequenceStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+}
+
+model ResearchSession {
+  id            String         @id @default(cuid())
+  projectId     String
+  query         String
+  aiSuggestions Json?
+  findings      Json?
+  status        ResearchStatus @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+}
+
+model AssistantConversation {
+  id        String             @id @default(cuid())
+  title     String             @default("New Conversation")
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  messages AssistantMessage[]
+}
+
+model AssistantMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String   // "user" | "assistant"
+  content        String
+  projectIds     Json?    // string[] of project IDs used for context
+  createdAt      DateTime @default(now())
+
+  conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model Call {
+  id              String         @id @default(cuid())
+  leadId          String
+  title           String
+  callDate        DateTime
+  durationMinutes Int?
+  audioFilePath   String?
+  transcript      String?
+  manualNotes     String?
+  structuredNotes Json?
+  sentiment       CallSentiment?
+  sentimentScore  Float?
+  touchpointId    String?        @unique
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  lead        Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  touchpoint  Touchpoint?     @relation(fields: [touchpointId], references: [id])
+  annotations CallAnnotation[]
+
+  @@index([leadId])
+  @@index([callDate(sort: Desc)])
+}
+
+model CallAnnotation {
+  id        String   @id @default(cuid())
+  callId    String
+  key       String
+  value     String
+  timestamp String?
+  createdAt DateTime @default(now())
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+}
+
+model CompanySummary {
+  id            String   @id @default(cuid())
+  projectId     String
+  companyName   String
+  summary       String
+  insights      String
+  nextSteps     String?
+  leadsIncluded Json
+  lastCallDate  DateTime?
+  generatedAt   DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, companyName])
+  @@index([projectId])
+}
+
+model ProjectSummary {
+  id           String   @id @default(cuid())
+  projectId    String   @unique
+  summary      String
+  insights     String
+  companyCount Int      @default(0)
+  leadCount    Int      @default(0)
+  generatedAt  DateTime @default(now())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model Settings {
+  id                    String   @id @default("default")
+  llmProvider           String   @default("anthropic")
+  llmApiKey             String   @default("")
+  openaiApiKey          String   @default("")
+  webSearchEnabled      Boolean  @default(false)
+  defaultMaxTouchpoints Int      @default(5)
+  defaultIntervalDays   Int      @default(3)
+  outreachTemplates     Json?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+model Reminder {
+  id        String   @id @default(cuid())
+  leadId    String
+  title     String
+  notes     String?
+  dueDate   DateTime
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([leadId])
+  @@index([dueDate])
+  @@index([completed])
+}
