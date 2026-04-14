@@ -28,6 +28,20 @@ Built with Next.js 14, PostgreSQL, Prisma, and Ollama for local LLM inference.
 - **Web search integration** — LangChain agent with DuckDuckGo search lets the AI pull real company data and industry info
 - **Bulk CSV import** — Import leads from spreadsheets with field mapping
 
+### Second Brain (LLM-Compiled Wiki)
+
+Each project can be turned into a project-scoped wiki of LLM-generated, cross-linked pages compiled from raw sources (calls, touchpoints, leads, plus external articles and PDFs). Enable it per project with the `wikiEnabled` flag.
+
+- **External source ingest** — Attach URLs, PDFs, articles, notes, or images to a project. URLs are extracted to clean markdown via Mozilla Readability + Turndown; PDFs via pdf-parse (10MB cap); notes and articles pass through.
+- **Versioned documents** — Every wiki page is stored as an immutable `WikiDocument` with a content hash. Unchanged recompiles are skipped; changes bump the version and chain the previous page via `supersededById`.
+- **Backlinks** — Pages reference each other with `[[path/to/page.md]]` syntax. Backlinks are parsed automatically and queryable per target.
+- **Page kinds** — `PROJECT_INDEX`, `COMPANY`, `PERSON`, `CALL`, and `TOPIC` pages, each generated from typed context builders (leads, calls, touchpoints, stage history, tagged raw sources).
+- **Incremental compile scopes** — The orchestrator supports `call`, `lead`, `company`, `topic`, and `all` scopes. The `call` scope fans out to the call page, person page, company page, any topic pages whose keywords appear in structured notes, and the project index — intended to run after each call is processed.
+- **Topics** — Fixed topics (`objections`, `competitors`, `icp-patterns`, `pricing-feedback`) aggregate excerpts across all calls. LLM-proposed topics are discovered from existing wiki content.
+- **Second-brain assistant context** *(coming soon)* — The Lead Expert assistant will retrieve relevant wiki pages as context instead of flat summaries, giving more grounded project-aware answers.
+
+Current status: ingest + orchestration + prompts are wired (sub-tasks 1–3). Entity generators, compile API, viewer UI, and assistant retrieval are next.
+
 ### Other
 - **API key masking** — Keys are hidden after save, only last 4 characters shown
 - **No auth required** — Single-user, runs entirely on your machine
@@ -131,6 +145,7 @@ src/
       settings/       # App configuration (API key masking)
       summaries/      # Summary generation endpoints
       touchpoints/    # Interaction logging
+      wiki/sources/   # External raw-source ingest (URL/PDF/NOTE/...)
     leads/[id]/       # Lead detail page (calls, notes, stage)
     projects/         # Project list + detail pages
     settings/         # Settings page (voice config)
@@ -154,6 +169,13 @@ src/
     scoring.ts        # Lead priority scoring engine
     transcription.ts  # OpenAI Whisper transcription
     utils.ts          # Date formatting helpers
+    wiki/
+      paths.ts        # Wiki path helpers + backlink parser
+      store.ts        # Versioned WikiDocument read/write with hash dedup
+      ingest.ts       # URL/PDF/note/article extraction
+      context.ts      # Data gathering for each wiki page kind
+      prompts.ts      # LLM prompt templates for each page kind
+      compile.ts      # Scope-driven orchestrator + GeneratorRegistry
   types/
     index.ts          # Shared TypeScript enums and label maps
 prisma/

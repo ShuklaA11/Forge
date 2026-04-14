@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Users, Kanban, Search } from 'lucide-react';
+import { Plus, Users, Kanban, Search, BookOpen } from 'lucide-react';
 import { PIPELINE_STAGE_LABELS, PROJECT_CAMPAIGN_STAGE_LABELS } from '@/types';
 import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
 import { ProjectSummaryCard } from '@/components/project-summary-card';
@@ -72,6 +72,9 @@ export default async function ProjectDashboardPage({
           <Link href={`/projects/${projectId}/leads`}><Button variant="outline" size="sm"><Users className="mr-2 h-4 w-4" /> Leads</Button></Link>
           <Link href={`/projects/${projectId}/pipeline`}><Button variant="outline" size="sm"><Kanban className="mr-2 h-4 w-4" /> Pipeline</Button></Link>
           <Link href={`/projects/${projectId}/research`}><Button variant="outline" size="sm"><Search className="mr-2 h-4 w-4" /> Research</Button></Link>
+          {project.wikiEnabled && (
+            <Link href={`/projects/${projectId}/wiki`}><Button variant="outline" size="sm"><BookOpen className="mr-2 h-4 w-4" /> Wiki</Button></Link>
+          )}
           <Link href={`/leads/new?projectId=${projectId}`}><Button size="sm"><Plus className="mr-2 h-4 w-4" /> Add Lead</Button></Link>
         </div>
       </div>

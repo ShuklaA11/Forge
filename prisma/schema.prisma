@@ -113,6 +113,40 @@ enum CallSentiment {
   VERY_NEGATIVE
 }
 
+enum WikiDocumentKind {
+  PROJECT_INDEX
+  COMPANY
+  PERSON
+  CALL
+  TOPIC
+}
+
+enum WikiRawSourceKind {
+  URL
+  PDF
+  ARTICLE
+  NOTE
+  IMAGE
+}
+
+enum WikiLintFindingKind {
+  INCONSISTENCY
+  MISSING_DATA
+  TOPIC_CANDIDATE
+}
+
+enum WikiLintFindingStatus {
+  OPEN
+  DISMISSED
+  RESOLVED
+}
+
+enum WikiLintSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 model Project {
   id            String               @id @default(cuid())
   name          String
@@ -122,38 +156,42 @@ model Project {
   campaignStage ProjectCampaignStage @default(IDEATION)
   color         String               @default("#6366f1")
   status        ProjectStatus        @default(ACTIVE)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  wikiEnabled   Boolean              @default(false)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   leads            Lead[]
   researchSessions ResearchSession[]
   companySummaries CompanySummary[]
   projectSummary   ProjectSummary?
+  wikiDocuments    WikiDocument[]
+  wikiRawSources   WikiRawSource[]
+  wikiLintFindings WikiLintFinding[]
 }
 
 model Lead {
-  id            String            @id @default(cuid())
-  projectId     String
-  firstName     String
-  lastName      String
-  company       String
-  title         String?
-  role          DecisionMakerRole @default(OTHER)
-  email         String?
-  phone         String?
-  linkedinUrl   String?
-  companySize   CompanySize?
-  companyType   CompanyType?
-  industry      String?
-  location      String?
-  source        LeadSource        @default(MANUAL)
-  notes         String?
-  priorityScore Int               @default(0)
-  currentStage       PipelineStage      @default(RESEARCHED)
-  conversationStage  ConversationStage  @default(LEAD)
-  status             LeadStatus         @default(ACTIVE)
-  createdAt          DateTime           @default(now())
-  updatedAt          DateTime           @updatedAt
+  id                String            @id @default(cuid())
+  projectId         String
+  firstName         String
+  lastName          String
+  company           String
+  title             String?
+  role              DecisionMakerRole @default(OTHER)
+  email             String?
+  phone             String?
+  linkedinUrl       String?
+  companySize       CompanySize?
+  companyType       CompanyType?
+  industry          String?
+  location          String?
+  source            LeadSource        @default(MANUAL)
+  notes             String?
+  priorityScore     Int               @default(0)
+  currentStage      PipelineStage     @default(RESEARCHED)
+  conversationStage ConversationStage @default(LEAD)
+  status            LeadStatus        @default(ACTIVE)
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   project          Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
   stageHistory     LeadStageHistory[]
@@ -192,7 +230,7 @@ model Touchpoint {
   gotReply  Boolean             @default(false)
   notes     String?
 
-  lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
   call Call?
 
   @@index([leadId])
@@ -230,10 +268,10 @@ model ResearchSession {
 }
 
 model AssistantConversation {
-  id        String             @id @default(cuid())
-  title     String             @default("New Conversation")
-  createdAt DateTime           @default(now())
-  updatedAt DateTime           @updatedAt
+  id        String   @id @default(cuid())
+  title     String   @default("New Conversation")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   messages AssistantMessage[]
 }
@@ -241,9 +279,9 @@ model AssistantConversation {
 model AssistantMessage {
   id             String   @id @default(cuid())
   conversationId String
-  role           String   // "user" | "assistant"
+  role           String // "user" | "assistant"
   content        String
-  projectIds     Json?    // string[] of project IDs used for context
+  projectIds     Json? // string[] of project IDs used for context
   createdAt      DateTime @default(now())
 
   conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -267,8 +305,8 @@ model Call {
   createdAt       DateTime       @default(now())
   updatedAt       DateTime       @updatedAt
 
-  lead        Lead            @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  touchpoint  Touchpoint?     @relation(fields: [touchpointId], references: [id])
+  lead        Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  touchpoint  Touchpoint?      @relation(fields: [touchpointId], references: [id])
   annotations CallAnnotation[]
 
   @@index([leadId])
@@ -289,7 +327,7 @@ model CallAnnotation {
 }
 
 model CompanySummary {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   projectId     String
   companyName   String
   summary       String
@@ -297,9 +335,9 @@ model CompanySummary {
   nextSteps     String?
   leadsIncluded Json
   lastCallDate  DateTime?
-  generatedAt   DateTime @default(now())
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  generatedAt   DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
@@ -334,6 +372,29 @@ model Settings {
   updatedAt             DateTime @updatedAt
 }
 
+model WikiDocument {
+  id             String           @id @default(cuid())
+  projectId      String
+  path           String
+  kind           WikiDocumentKind
+  version        Int              @default(1)
+  frontmatter    Json
+  content        String
+  contentHash    String
+  sources        Json
+  supersededById String?          @unique
+  generatedAt    DateTime         @default(now())
+  createdAt      DateTime         @default(now())
+
+  project      Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  supersededBy WikiDocument? @relation("WikiSupersession", fields: [supersededById], references: [id])
+  supersedes   WikiDocument? @relation("WikiSupersession")
+
+  @@unique([projectId, path, version])
+  @@index([projectId, path])
+  @@index([projectId, kind])
+}
+
 model Reminder {
   id        String   @id @default(cuid())
   leadId    String
@@ -349,4 +410,44 @@ model Reminder {
   @@index([leadId])
   @@index([dueDate])
   @@index([completed])
+}
+
+model WikiLintFinding {
+  id          String                @id @default(cuid())
+  projectId   String
+  kind        WikiLintFindingKind
+  severity    WikiLintSeverity      @default(MEDIUM)
+  status      WikiLintFindingStatus @default(OPEN)
+  title       String
+  description String
+  docPaths    Json
+  evidence    Json
+  fingerprint String
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  resolvedAt  DateTime?
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, fingerprint])
+  @@index([projectId, status])
+  @@index([projectId, kind, status])
+}
+
+model WikiRawSource {
+  id        String             @id @default(cuid())
+  projectId String
+  kind      WikiRawSourceKind
+  title     String
+  url       String?
+  filePath  String?
+  content   String
+  metadata  Json?
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([projectId, kind])
 }

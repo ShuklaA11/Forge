@@ -6,8 +6,12 @@ import {
   DECISION_MAKER_LABELS,
   CHANNEL_LABELS,
 } from '@/types';
+import { retrieveRelevantDocs, formatDocsForPrompt } from './wiki/retrieve';
 
-export async function buildLeadExpertSystemPrompt(projectIds: string[]): Promise<string> {
+export async function buildLeadExpertSystemPrompt(
+  projectIds: string[],
+  query: string = '',
+): Promise<string> {
   const basePrompt = `You are a lead generation and sales strategy expert. You have deep knowledge of B2B outreach, pipeline management, and market positioning. You help users:
 
 - Develop comprehensive market approach strategies with specific targets
@@ -126,11 +130,28 @@ Be specific, actionable, and data-driven. Reference the actual leads and project
 ${topLeads || '  (none)'}`;
   });
 
+  // Retrieve wiki context per project (only if wikiEnabled and query is non-empty)
+  const wikiSections: string[] = [];
+  if (query) {
+    for (const project of projects) {
+      if (!project.wikiEnabled) continue;
+      const retrieved = await retrieveRelevantDocs(project.id, query, 8);
+      if (retrieved.length === 0) continue;
+      wikiSections.push(
+        `### Wiki context for "${project.name}"\n\n${formatDocsForPrompt(retrieved)}`,
+      );
+    }
+  }
+
+  const wikiBlock = wikiSections.length > 0
+    ? `\n\n## Wiki Context\n\nThe following wiki pages are most relevant to the user's question, retrieved from the project wiki. Treat these as authoritative context.\n\n${wikiSections.join('\n\n')}`
+    : '';
+
   return `${basePrompt}
 
 ## Active Projects Context
 
-${projectSections.join('\n\n')}
+${projectSections.join('\n\n')}${wikiBlock}
 
 Use this data to give specific, contextual advice. Reference actual lead names, companies, and pipeline positions when relevant. If recommending actions, be specific about which leads to target and why.`;
 }

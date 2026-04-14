@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       orderBy: { createdAt: 'asc' },
     });
 
-    const systemPrompt = await buildLeadExpertSystemPrompt(selectedProjectIds);
+    const systemPrompt = await buildLeadExpertSystemPrompt(selectedProjectIds, message);
 
     const llmMessages = [
       { role: 'system' as const, content: systemPrompt },

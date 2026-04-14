@@ -4,6 +4,22 @@ import { transcribeAudio } from '@/lib/transcription';
 import { generateStructuredNotes } from '@/lib/call-notes';
 import { saveCompanySummary } from '@/lib/company-summary';
 import { saveProjectSummary } from '@/lib/project-summary';
+import { compileProject, type GeneratorRegistry } from '@/lib/wiki/compile';
+import { generate as generateCompanyDoc } from '@/lib/wiki/generators/company';
+import { generate as generatePersonDoc } from '@/lib/wiki/generators/person';
+import { generate as generateCallDoc } from '@/lib/wiki/generators/call';
+import { generate as generateProjectIndexDoc } from '@/lib/wiki/generators/project-index';
+import { generate as generateTopicDoc } from '@/lib/wiki/generators/topic';
+
+function buildWikiRegistry(): GeneratorRegistry {
+  return {
+    generateCompany: (pid, name) => generateCompanyDoc(pid, name),
+    generatePerson: (pid, leadId) => generatePersonDoc(pid, leadId),
+    generateCall: (pid, callId) => generateCallDoc(pid, callId),
+    generateProjectIndex: (pid) => generateProjectIndexDoc(pid),
+    generateTopic: (pid, topicKey) => generateTopicDoc(pid, topicKey),
+  };
+}
 
 const SENTIMENT_MAP: Record<string, string> = {
   very_positive: 'VERY_POSITIVE',
@@ -98,6 +114,15 @@ export async function POST(request: Request) {
     saveCompanySummary(projectId, company)
       .then(() => saveProjectSummary(projectId))
       .catch((err) => console.error('Summary regeneration failed:', err));
+
+    // Step 6: Fire-and-forget wiki compile for affected pages
+    prisma.project
+      .findUnique({ where: { id: projectId }, select: { wikiEnabled: true } })
+      .then((project) => {
+        if (!project?.wikiEnabled) return;
+        return compileProject(projectId, { kind: 'call', callId }, buildWikiRegistry());
+      })
+      .catch((err) => console.error('Wiki compile failed:', err));
 
     return NextResponse.json(updatedCall);
   } catch (error) {

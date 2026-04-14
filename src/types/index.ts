@@ -10,6 +10,8 @@ export type {
   CallAnnotation,
   CompanySummary,
   ProjectSummary,
+  WikiDocument,
+  WikiRawSource,
 } from '@prisma/client';
 
 export type {
@@ -28,6 +30,8 @@ export type {
   ProjectCampaignStage,
   ConversationStage,
   CallSentiment,
+  WikiDocumentKind,
+  WikiRawSourceKind,
 } from '@prisma/client';
 
 export const PIPELINE_STAGE_LABELS: Record<string, string> = {
