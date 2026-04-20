@@ -40,6 +40,11 @@ yarn-error.log*
 .claude/
 CLAUDE.md
 
+# local planning docs (never committed)
+plan.md
+plan-*.md
+plans/
+
 # vercel
 .vercel
 

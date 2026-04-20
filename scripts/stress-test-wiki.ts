@@ -31,6 +31,13 @@ import {
   fingerprintFinding,
   type LLMFn,
 } from '../src/lib/wiki/lint/consistency';
+import {
+  DuckDuckGoProvider,
+  StubSearchProvider,
+  getSearchProvider,
+  parseDuckDuckGoHtml,
+  unwrapDuckDuckGoUrl,
+} from '../src/lib/wiki/lint/search';
 
 let passed = 0;
 let failed = 0;
@@ -1214,6 +1221,166 @@ async function main() {
   }
 
   await prisma.project.delete({ where: { id: lintProject.id } });
+
+  // ========== TEST GROUP 9: Web Search Provider (Phase 2.2a) ==========
+  section('9. Web search provider — unit-level');
+
+  // Factory: default
+  {
+    const provider = getSearchProvider({});
+    assert('search factory: default is duckduckgo', provider.name === 'duckduckgo');
+  }
+
+  // Factory: explicit duckduckgo
+  {
+    const provider = getSearchProvider({ WIKI_SEARCH_PROVIDER: 'DuckDuckGo' });
+    assert('search factory: case-insensitive match', provider.name === 'duckduckgo');
+  }
+
+  // Factory: unknown kind throws
+  {
+    let threw = false;
+    try {
+      getSearchProvider({ WIKI_SEARCH_PROVIDER: 'bogus' });
+    } catch (e: any) {
+      threw = e.message.includes('bogus');
+    }
+    assert('search factory: unknown provider throws', threw);
+  }
+
+  // StubSearchProvider: records calls and returns seeded results
+  {
+    const stub = new StubSearchProvider([
+      { title: 'Result 1', url: 'https://a.test', snippet: 's1' },
+      { title: 'Result 2', url: 'https://b.test', snippet: 's2' },
+    ]);
+    const results = await stub.search('hello', { maxResults: 5 });
+    assert('StubSearchProvider: returns seeded results', results.length === 2);
+    assert('StubSearchProvider: recorded the call',
+      stub.calls.length === 1 && stub.calls[0].query === 'hello' && stub.calls[0].maxResults === 5);
+  }
+
+  // StubSearchProvider: respects maxResults clamp
+  {
+    const many = Array.from({ length: 15 }, (_, i) => ({
+      title: `R${i}`,
+      url: `https://r${i}.test`,
+      snippet: '',
+    }));
+    const stub = new StubSearchProvider(many);
+    const results = await stub.search('q', { maxResults: 999 });
+    assert('StubSearchProvider: caps at hard max 10', results.length === 10);
+  }
+
+  // unwrapDuckDuckGoUrl: uddg redirect
+  {
+    const wrapped = '//duckduckgo.com/l/?uddg=https%3A%2F%2Fexample.com%2Fpath%3Fq%3D1&rut=abc';
+    const unwrapped = unwrapDuckDuckGoUrl(wrapped);
+    assert('unwrapDuckDuckGoUrl: decodes uddg param',
+      unwrapped === 'https://example.com/path?q=1');
+  }
+
+  // unwrapDuckDuckGoUrl: protocol-relative fallback
+  {
+    const unwrapped = unwrapDuckDuckGoUrl('//example.com/direct');
+    assert('unwrapDuckDuckGoUrl: adds https to protocol-relative',
+      unwrapped === 'https://example.com/direct');
+  }
+
+  // unwrapDuckDuckGoUrl: direct URL pass-through
+  {
+    const unwrapped = unwrapDuckDuckGoUrl('https://already.test/path');
+    assert('unwrapDuckDuckGoUrl: direct URL passes through',
+      unwrapped === 'https://already.test/path');
+  }
+
+  // unwrapDuckDuckGoUrl: empty input
+  {
+    assert('unwrapDuckDuckGoUrl: empty input returns empty',
+      unwrapDuckDuckGoUrl('') === '');
+  }
+
+  // parseDuckDuckGoHtml: extracts 2 results from fixture HTML
+  {
+    const fixture = `
+<html><body>
+<div class="result__body">
+  <h2 class="result__title">
+    <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fanthropic.com&rut=x">Anthropic &amp; Claude</a>
+  </h2>
+  <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fanthropic.com&rut=x">AI safety company &quot;Claude&quot; maker</a>
+</div>
+<div class="result__body">
+  <h2 class="result__title">
+    <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FAnthropic&rut=y">Anthropic - Wikipedia</a>
+  </h2>
+  <a class="result__snippet" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fen.wikipedia.org%2Fwiki%2FAnthropic&rut=y">Encyclopedia entry</a>
+</div>
+</body></html>`;
+    const results = parseDuckDuckGoHtml(fixture);
+    assert('parseDuckDuckGoHtml: extracts 2 results', results.length === 2,
+      `got ${results.length}`);
+    assert('parseDuckDuckGoHtml: first result title decoded',
+      results[0]?.title === 'Anthropic & Claude');
+    assert('parseDuckDuckGoHtml: first result url unwrapped',
+      results[0]?.url === 'https://anthropic.com');
+    assert('parseDuckDuckGoHtml: first result snippet decoded',
+      results[0]?.snippet === 'AI safety company "Claude" maker');
+    assert('parseDuckDuckGoHtml: second result wikipedia',
+      results[1]?.url === 'https://en.wikipedia.org/wiki/Anthropic');
+  }
+
+  // parseDuckDuckGoHtml: drops DDG-hosted ad/tracker URLs
+  {
+    const adHtml = `
+<a class="result__a" href="https://duckduckgo.com/y.js?ad_domain=spammy.ai&rut=x">Sponsored</a>
+<a class="result__snippet" href="#">ad copy</a>
+<a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Freal.example.com">Real result</a>
+<a class="result__snippet" href="#">real snippet</a>`;
+    const results = parseDuckDuckGoHtml(adHtml);
+    assert('parseDuckDuckGoHtml: ad tracker URL dropped',
+      results.length === 1 && results[0].url === 'https://real.example.com');
+  }
+
+  // parseDuckDuckGoHtml: empty / malformed input
+  {
+    assert('parseDuckDuckGoHtml: empty string → []', parseDuckDuckGoHtml('').length === 0);
+    assert('parseDuckDuckGoHtml: no result blocks → []',
+      parseDuckDuckGoHtml('<html><body>nothing here</body></html>').length === 0);
+  }
+
+  // DuckDuckGoProvider: empty query skips fetch
+  {
+    const provider = new DuckDuckGoProvider();
+    const results = await provider.search('   ');
+    assert('DuckDuckGoProvider: whitespace query returns [] without fetch',
+      results.length === 0);
+  }
+
+  // Gated live test — best-effort smoke check. DDG rate-limits and returns
+  // empty results under load, so we warn rather than hard-fail on an empty list.
+  if (process.env.WIKI_TEST_LIVE === '1') {
+    section('9b. Web search provider — live DDG');
+    try {
+      const provider = new DuckDuckGoProvider();
+      const results = await provider.search('Anthropic Claude', { maxResults: 3 });
+      if (results.length === 0) {
+        console.log('  \x1b[33m⚠\x1b[0m live DDG returned 0 results (likely rate-limited)');
+      } else {
+        assert('Live DDG: results have http URLs',
+          results.every((r) => r.url.startsWith('http')));
+        assert('Live DDG: results have non-empty titles',
+          results.every((r) => r.title.length > 0));
+        assert('Live DDG: results are not DDG-hosted ads',
+          results.every((r) => !/^https?:\/\/(?:[^/]+\.)?duckduckgo\.com\//.test(r.url)));
+        console.log(`  ℹ live result sample: ${JSON.stringify(results[0])}`);
+      }
+    } catch (e: any) {
+      console.log(`  \x1b[33m⚠\x1b[0m live DDG threw: ${e.message}`);
+    }
+  } else {
+    console.log('  \x1b[33m⊘\x1b[0m live DDG skipped (set WIKI_TEST_LIVE=1)');
+  }
 
   // ========== CLEANUP ==========
   section('Cleanup');
