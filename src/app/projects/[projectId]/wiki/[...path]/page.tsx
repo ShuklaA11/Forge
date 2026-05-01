@@ -2,7 +2,12 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/db';
 import { listAllLatest, readLatest, readVersion, getBacklinks, getHistory } from '@/lib/wiki/store';
+import { listImputationProposals } from '@/lib/wiki/lint/imputation';
 import { WikiTree, RecompileButton, WikiMarkdown, type WikiTreeDoc } from '@/components/wiki-tree';
+import {
+  WikiImputationPanel,
+  type ImputationProposalRow,
+} from '@/components/wiki-imputation-panel';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -56,6 +61,25 @@ export default async function WikiDetailPage({
   const title = docTitle(doc);
   const isOldVersion = requestedVersion !== null && history.length > 0 && requestedVersion < history[history.length - 1].version;
 
+  let imputationProposals: ImputationProposalRow[] = [];
+  if (doc.kind === 'COMPANY') {
+    const allOpen = await listImputationProposals(projectId);
+    imputationProposals = allOpen
+      .filter((row) => {
+        const paths = Array.isArray(row.docPaths) ? (row.docPaths as unknown[]) : [];
+        return paths.some((p) => typeof p === 'string' && p === doc.path);
+      })
+      .map((row) => ({
+        id: row.id,
+        severity: row.severity,
+        title: row.title,
+        description: row.description,
+        evidence: Array.isArray(row.evidence)
+          ? (row.evidence as ImputationProposalRow['evidence'])
+          : [],
+      }));
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -94,6 +118,14 @@ export default async function WikiDetailPage({
               <WikiMarkdown projectId={projectId} content={doc.content} />
             </CardContent>
           </Card>
+
+          {doc.kind === 'COMPANY' && (
+            <WikiImputationPanel
+              projectId={projectId}
+              companyName={title}
+              proposals={imputationProposals}
+            />
+          )}
 
           {history.length > 1 && (
             <Card>
