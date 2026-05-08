@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { calculatePriorityScore } from '@/lib/scoring';
+import { runTriageInBackground } from '@/lib/agents/reply-triage-runner';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -78,6 +79,10 @@ export async function POST(request: Request) {
       where: { id: body.leadId },
       data: { priorityScore: score },
     });
+  }
+
+  if (touchpoint.direction === 'INBOUND') {
+    runTriageInBackground(touchpoint.id);
   }
 
   return NextResponse.json(touchpoint, { status: 201 });

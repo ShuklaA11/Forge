@@ -229,6 +229,7 @@ model Touchpoint {
   sentAt    DateTime            @default(now())
   gotReply  Boolean             @default(false)
   notes     String?
+  aiTriage  Json?
 
   lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
   call Call?

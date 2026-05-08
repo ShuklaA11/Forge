@@ -17,6 +17,7 @@ import { CompanySummaryCard } from '@/components/company-summary-card';
 import { LeadEditDialog } from '@/components/lead-edit-dialog';
 import { ReminderSection } from '@/components/reminder-form';
 import { SequenceControl } from '@/components/sequence-control';
+import { InboundTriageActions } from '@/components/inbound-triage-actions';
 
 export default async function LeadDetailPage({
   params,
@@ -118,6 +119,13 @@ export default async function LeadDetailPage({
                           {tp.subject && <p className="text-sm font-medium">{tp.subject}</p>}
                           {tp.body && <p className="text-sm text-muted-foreground line-clamp-2">{tp.body}</p>}
                           {tp.notes && <p className="text-xs text-muted-foreground mt-1 italic">{tp.notes}</p>}
+                          {tp.direction === 'INBOUND' && (
+                            <InboundTriageActions
+                              touchpointId={tp.id}
+                              aiTriage={tp.aiTriage}
+                              sequenceId={lead.outreachSequence?.status === 'ACTIVE' ? lead.outreachSequence.id : undefined}
+                            />
+                          )}
                         </div>
                       </div>
                     ))}
