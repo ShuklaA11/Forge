@@ -147,6 +147,17 @@ enum WikiLintSeverity {
   HIGH
 }
 
+enum ProjectInsightKind {
+  ICP_REFINEMENT
+  PIPELINE_HEALTH
+}
+
+enum ProjectInsightStatus {
+  PROPOSED
+  APPLIED
+  DISMISSED
+}
+
 model Project {
   id            String               @id @default(cuid())
   name          String
@@ -167,6 +178,8 @@ model Project {
   wikiDocuments    WikiDocument[]
   wikiRawSources   WikiRawSource[]
   wikiLintFindings WikiLintFinding[]
+  agentRuns        AgentRun[]
+  insights         ProjectInsight[]
 }
 
 model Lead {
@@ -199,6 +212,7 @@ model Lead {
   outreachSequence OutreachSequence?
   calls            Call[]
   reminders        Reminder[]
+  agentRuns        AgentRun[]
 
   @@index([projectId])
   @@index([priorityScore(sort: Desc)])
@@ -436,6 +450,40 @@ model WikiLintFinding {
   @@unique([projectId, fingerprint])
   @@index([projectId, status])
   @@index([projectId, kind, status])
+}
+
+model AgentRun {
+  id         String    @id @default(cuid())
+  agent      String
+  projectId  String?
+  leadId     String?
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  success    Boolean   @default(false)
+  tokensIn   Int       @default(0)
+  tokensOut  Int       @default(0)
+  summary    String?
+  error      String?
+
+  project Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lead    Lead?    @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@index([agent])
+  @@index([projectId, startedAt(sort: Desc)])
+  @@index([leadId, startedAt(sort: Desc)])
+}
+
+model ProjectInsight {
+  id          String               @id @default(cuid())
+  projectId   String
+  kind        ProjectInsightKind
+  status      ProjectInsightStatus @default(PROPOSED)
+  content     Json
+  generatedAt DateTime             @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, kind, generatedAt(sort: Desc)])
 }
 
 model WikiRawSource {
