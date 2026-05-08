@@ -6,8 +6,10 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Bell, Plus, Check, Trash2, Loader2, X } from 'lucide-react';
+import { Bell, Plus, Check, Trash2, Loader2, X, Sparkles } from 'lucide-react';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { formatDate } from '@/lib/utils';
+import type { MeetingPrepBrief } from '@/lib/agents/meeting-prep';
 
 interface ReminderData {
   id: string;
@@ -15,6 +17,13 @@ interface ReminderData {
   notes: string | null;
   dueDate: Date;
   completed: boolean;
+  aiPrepBrief: string | null;
+}
+
+interface PrepSource {
+  title: string;
+  url: string;
+  snippet: string;
 }
 
 export function ReminderSection({ leadId, reminders }: { leadId: string; reminders: ReminderData[] }) {
@@ -26,6 +35,53 @@ export function ReminderSection({ leadId, reminders }: { leadId: string; reminde
   const [saving, setSaving] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [prepReminderId, setPrepReminderId] = useState<string | null>(null);
+  const [prepLoading, setPrepLoading] = useState(false);
+  const [prepBrief, setPrepBrief] = useState<MeetingPrepBrief | null>(null);
+  const [prepSources, setPrepSources] = useState<PrepSource[]>([]);
+  const [prepError, setPrepError] = useState<string | null>(null);
+
+  function openPrep(reminder: ReminderData) {
+    setPrepReminderId(reminder.id);
+    setPrepError(null);
+    setPrepSources([]);
+    if (reminder.aiPrepBrief) {
+      try {
+        setPrepBrief(JSON.parse(reminder.aiPrepBrief) as MeetingPrepBrief);
+      } catch {
+        setPrepBrief(null);
+      }
+    } else {
+      setPrepBrief(null);
+    }
+  }
+
+  function closePrep() {
+    setPrepReminderId(null);
+    setPrepBrief(null);
+    setPrepSources([]);
+    setPrepError(null);
+  }
+
+  async function generatePrep(reminderId: string) {
+    setPrepLoading(true);
+    setPrepError(null);
+    try {
+      const res = await fetch(`/api/reminders/${reminderId}/prep`, { method: 'POST' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Failed to generate prep');
+      }
+      const data = await res.json();
+      setPrepBrief(data.brief as MeetingPrepBrief);
+      setPrepSources((data.sources as PrepSource[]) || []);
+      router.refresh();
+    } catch (err) {
+      setPrepError(err instanceof Error ? err.message : 'Failed to generate prep');
+    } finally {
+      setPrepLoading(false);
+    }
+  }
 
   async function handleCreate() {
     if (!title || !dueDate) return;
@@ -147,6 +203,16 @@ export function ReminderSection({ leadId, reminders }: { leadId: string; reminde
               </div>
               <Button
                 variant="ghost"
+                size="sm"
+                className="shrink-0 gap-1.5 text-xs"
+                onClick={() => openPrep(r)}
+                title={r.aiPrepBrief ? 'View prep brief' : 'Generate prep brief'}
+              >
+                <Sparkles className="h-3.5 w-3.5" />
+                {r.aiPrepBrief ? 'View prep' : 'Generate prep'}
+              </Button>
+              <Button
+                variant="ghost"
                 size="icon"
                 className="h-6 w-6 shrink-0 text-red-500 hover:text-red-600"
                 onClick={() => handleDelete(r.id)}
@@ -187,6 +253,96 @@ export function ReminderSection({ leadId, reminders }: { leadId: string; reminde
           </div>
         )}
       </CardContent>
+
+      <Sheet open={prepReminderId !== null} onOpenChange={(o) => { if (!o) closePrep(); }}>
+        <SheetContent className="w-full sm:max-w-xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4" /> Meeting prep brief
+            </SheetTitle>
+            <SheetDescription>
+              History recap, recent signals, suggested questions, and likely objections.
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-4 space-y-4">
+            {!prepBrief && !prepLoading && !prepError && (
+              <div className="rounded-md border p-4 text-center">
+                <p className="text-sm text-muted-foreground mb-3">No brief yet. Generate one to summarize history, signals, and questions for this meeting.</p>
+                <Button size="sm" onClick={() => prepReminderId && generatePrep(prepReminderId)} className="gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" /> Generate brief
+                </Button>
+              </div>
+            )}
+
+            {prepLoading && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" /> Generating brief…
+              </div>
+            )}
+
+            {prepError && (
+              <div className="rounded-md border border-red-500/30 bg-red-500/5 p-3 text-sm text-red-600">{prepError}</div>
+            )}
+
+            {prepBrief && (
+              <div className="space-y-4">
+                <section>
+                  <h4 className="text-sm font-semibold mb-1">History recap</h4>
+                  <p className="text-sm text-muted-foreground whitespace-pre-wrap">{prepBrief.historyRecap}</p>
+                </section>
+
+                {prepBrief.recentSignals.length > 0 && (
+                  <section>
+                    <h4 className="text-sm font-semibold mb-1">Recent signals</h4>
+                    <ul className="text-sm list-disc pl-4 space-y-0.5">
+                      {prepBrief.recentSignals.map((s, i) => <li key={i}>{s}</li>)}
+                    </ul>
+                  </section>
+                )}
+
+                {prepBrief.suggestedQuestions.length > 0 && (
+                  <section>
+                    <h4 className="text-sm font-semibold mb-1">Suggested questions</h4>
+                    <ul className="text-sm list-disc pl-4 space-y-0.5">
+                      {prepBrief.suggestedQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                    </ul>
+                  </section>
+                )}
+
+                {prepBrief.likelyObjections.length > 0 && (
+                  <section>
+                    <h4 className="text-sm font-semibold mb-1">Likely objections</h4>
+                    <ul className="text-sm list-disc pl-4 space-y-0.5">
+                      {prepBrief.likelyObjections.map((o, i) => <li key={i}>{o}</li>)}
+                    </ul>
+                  </section>
+                )}
+
+                {prepSources.length > 0 && (
+                  <section className="border-t pt-3">
+                    <h4 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Web sources</h4>
+                    <ul className="text-xs space-y-1">
+                      {prepSources.map((s, i) => (
+                        <li key={i}>
+                          <a href={s.url} target="_blank" rel="noreferrer" className="underline">{s.title}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                )}
+
+                <div className="pt-2 border-t">
+                  <Button size="sm" variant="outline" onClick={() => prepReminderId && generatePrep(prepReminderId)} disabled={prepLoading} className="gap-1.5">
+                    {prepLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                    Re-generate
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
     </Card>
   );
 }

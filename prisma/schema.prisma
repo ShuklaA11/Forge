@@ -399,14 +399,15 @@ model WikiDocument {
 }
 
 model Reminder {
-  id        String   @id @default(cuid())
-  leadId    String
-  title     String
-  notes     String?
-  dueDate   DateTime
-  completed Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  leadId       String
+  title        String
+  notes        String?
+  dueDate      DateTime
+  completed    Boolean  @default(false)
+  aiPrepBrief  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   lead Lead @relation(fields: [leadId], references: [id], onDelete: Cascade)
 
