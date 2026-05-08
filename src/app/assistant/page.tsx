@@ -14,11 +14,21 @@ interface Project {
   status: string;
 }
 
+interface Source {
+  projectId: string;
+  projectName: string;
+  docId: string;
+  path: string;
+  title: string;
+  score: number;
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
   content: string;
   createdAt: string;
+  sources?: Source[] | null;
 }
 
 interface Conversation {
@@ -135,6 +145,7 @@ export default function AssistantPage() {
         role: 'assistant',
         content: data.response,
         createdAt: new Date().toISOString(),
+        sources: data.sources ?? null,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -321,6 +332,25 @@ export default function AssistantPage() {
                 }`}
               >
                 <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+                {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
+                  <div className="mt-2.5 pt-2.5 border-t border-white/[0.06] space-y-1">
+                    <div className="text-[10px] uppercase tracking-wider text-white/30">
+                      Sources
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {msg.sources.map((s) => (
+                        <a
+                          key={s.docId}
+                          href={`/projects/${s.projectId}/wiki/${s.path.split('/').map(encodeURIComponent).join('/')}`}
+                          className="text-[11px] px-2 py-0.5 rounded border border-white/10 text-white/50 hover:bg-white/5 hover:text-white/80 transition-colors"
+                          title={`${s.projectName} · ${s.path}`}
+                        >
+                          {s.title}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <div className="text-[10px] text-white/20 mt-1.5">
                   {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                 </div>

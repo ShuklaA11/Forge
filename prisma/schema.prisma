@@ -282,6 +282,7 @@ model AssistantMessage {
   role           String // "user" | "assistant"
   content        String
   projectIds     Json? // string[] of project IDs used for context
+  sources        Json? // RetrievedSource[] — wiki pages used to ground this response
   createdAt      DateTime @default(now())
 
   conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

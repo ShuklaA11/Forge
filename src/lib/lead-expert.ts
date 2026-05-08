@@ -6,12 +6,22 @@ import {
   DECISION_MAKER_LABELS,
   CHANNEL_LABELS,
 } from '@/types';
-import { retrieveRelevantDocs, formatDocsForPrompt } from './wiki/retrieve';
+import {
+  retrieveRelevantDocs,
+  formatDocsForPrompt,
+  toRetrievedSources,
+  type RetrievedSource,
+} from './wiki/retrieve';
+
+export interface LeadExpertPrompt {
+  prompt: string;
+  sources: RetrievedSource[];
+}
 
 export async function buildLeadExpertSystemPrompt(
   projectIds: string[],
   query: string = '',
-): Promise<string> {
+): Promise<LeadExpertPrompt> {
   const basePrompt = `You are a lead generation and sales strategy expert. You have deep knowledge of B2B outreach, pipeline management, and market positioning. You help users:
 
 - Develop comprehensive market approach strategies with specific targets
@@ -23,7 +33,10 @@ export async function buildLeadExpertSystemPrompt(
 Be specific, actionable, and data-driven. Reference the actual leads and project data provided below when giving advice. If no projects are selected, give general lead strategy advice.`;
 
   if (projectIds.length === 0) {
-    return basePrompt + '\n\nNo projects are currently selected. Give general lead strategy advice and ask the user to select projects for personalized recommendations.';
+    return {
+      prompt: basePrompt + '\n\nNo projects are currently selected. Give general lead strategy advice and ask the user to select projects for personalized recommendations.',
+      sources: [],
+    };
   }
 
   const projects = await prisma.project.findMany({
@@ -43,7 +56,10 @@ Be specific, actionable, and data-driven. Reference the actual leads and project
   });
 
   if (projects.length === 0) {
-    return basePrompt + '\n\nThe selected projects were not found.';
+    return {
+      prompt: basePrompt + '\n\nThe selected projects were not found.',
+      sources: [],
+    };
   }
 
   const projectSections = projects.map((project) => {
@@ -132,6 +148,7 @@ ${topLeads || '  (none)'}`;
 
   // Retrieve wiki context per project (only if wikiEnabled and query is non-empty)
   const wikiSections: string[] = [];
+  const allSources: RetrievedSource[] = [];
   if (query) {
     for (const project of projects) {
       if (!project.wikiEnabled) continue;
@@ -140,6 +157,7 @@ ${topLeads || '  (none)'}`;
       wikiSections.push(
         `### Wiki context for "${project.name}"\n\n${formatDocsForPrompt(retrieved)}`,
       );
+      allSources.push(...toRetrievedSources(retrieved, project.id, project.name));
     }
   }
 
@@ -147,11 +165,13 @@ ${topLeads || '  (none)'}`;
     ? `\n\n## Wiki Context\n\nThe following wiki pages are most relevant to the user's question, retrieved from the project wiki. Treat these as authoritative context.\n\n${wikiSections.join('\n\n')}`
     : '';
 
-  return `${basePrompt}
+  const prompt = `${basePrompt}
 
 ## Active Projects Context
 
 ${projectSections.join('\n\n')}${wikiBlock}
 
 Use this data to give specific, contextual advice. Reference actual lead names, companies, and pipeline positions when relevant. If recommending actions, be specific about which leads to target and why.`;
+
+  return { prompt, sources: allSources };
 }

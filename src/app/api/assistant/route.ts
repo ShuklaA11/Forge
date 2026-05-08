@@ -57,7 +57,10 @@ export async function POST(request: Request) {
       orderBy: { createdAt: 'asc' },
     });
 
-    const systemPrompt = await buildLeadExpertSystemPrompt(selectedProjectIds, message);
+    const { prompt: systemPrompt, sources } = await buildLeadExpertSystemPrompt(
+      selectedProjectIds,
+      message,
+    );
 
     const llmMessages = [
       { role: 'system' as const, content: systemPrompt },
@@ -69,19 +72,21 @@ export async function POST(request: Request) {
 
     const response = await generateLLMResponseWithTools(llmMessages);
 
-    // Save assistant response
+    // Save assistant response with grounding sources
     await prisma.assistantMessage.create({
       data: {
         conversationId: convId,
         role: 'assistant',
         content: response,
         projectIds: selectedProjectIds,
+        sources: sources.length > 0 ? JSON.parse(JSON.stringify(sources)) : undefined,
       },
     });
 
     return NextResponse.json({
       conversationId: convId,
       response,
+      sources,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to generate response';

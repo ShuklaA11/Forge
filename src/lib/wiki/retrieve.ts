@@ -6,6 +6,30 @@ export interface RetrievedDoc {
   score: number;
 }
 
+export interface RetrievedSource {
+  projectId: string;
+  projectName: string;
+  docId: string;
+  path: string;
+  title: string;
+  score: number;
+}
+
+export function toRetrievedSources(
+  retrieved: RetrievedDoc[],
+  projectId: string,
+  projectName: string,
+): RetrievedSource[] {
+  return retrieved.map((r) => ({
+    projectId,
+    projectName,
+    docId: r.doc.id,
+    path: r.doc.path,
+    title: docTitle(r.doc),
+    score: r.score,
+  }));
+}
+
 const STOPWORDS = new Set([
   'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
   'of', 'to', 'and', 'or', 'but', 'in', 'on', 'at', 'by', 'for', 'with',
