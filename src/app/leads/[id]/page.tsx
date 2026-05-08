@@ -16,6 +16,7 @@ import { CallList } from '@/components/call-list';
 import { CompanySummaryCard } from '@/components/company-summary-card';
 import { LeadEditDialog } from '@/components/lead-edit-dialog';
 import { ReminderSection } from '@/components/reminder-form';
+import { SequenceControl } from '@/components/sequence-control';
 
 export default async function LeadDetailPage({
   params,
@@ -56,6 +57,7 @@ export default async function LeadDetailPage({
           <StageUpdater leadId={lead.id} currentStage={lead.currentStage} />
           <ConversationStageUpdater leadId={lead.id} currentStage={lead.conversationStage} />
           <Badge className={lead.priorityScore >= 70 ? 'bg-green-600' : lead.priorityScore >= 40 ? 'bg-yellow-600' : 'bg-gray-600'}>Score: {lead.priorityScore}</Badge>
+          <SequenceControl leadId={lead.id} sequence={lead.outreachSequence} />
           <LeadEditDialog lead={lead} />
           <EmailComposer leadId={lead.id} leadName={`${lead.firstName} ${lead.lastName}`} leadEmail={lead.email} />
           <CallLogger leadId={lead.id} leadName={`${lead.firstName} ${lead.lastName}`} />

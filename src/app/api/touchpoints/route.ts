@@ -35,11 +35,18 @@ export async function POST(request: Request) {
     },
   });
 
-  if (body.direction === 'OUTBOUND') {
-    const sequence = await prisma.outreachSequence.findUnique({
-      where: { leadId: body.leadId },
-    });
-    if (sequence && sequence.status === 'ACTIVE') {
+  const sequence = await prisma.outreachSequence.findUnique({
+    where: { leadId: body.leadId },
+  });
+
+  if (sequence && sequence.status === 'ACTIVE') {
+    if (body.direction === 'INBOUND' || body.gotReply) {
+      // Lead replied — sequence is done.
+      await prisma.outreachSequence.update({
+        where: { id: sequence.id },
+        data: { status: 'COMPLETED' },
+      });
+    } else if (body.direction === 'OUTBOUND') {
       const nextStep = sequence.currentStep + 1;
       const nextDate = new Date();
       nextDate.setDate(nextDate.getDate() + sequence.intervalDays);
