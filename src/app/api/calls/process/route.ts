@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { transcribeAudio } from '@/lib/transcription';
 import { generateStructuredNotes } from '@/lib/call-notes';
+import { runCallCoach } from '@/lib/agents/call-coach';
 import { saveCompanySummary } from '@/lib/company-summary';
 import { saveProjectSummary } from '@/lib/project-summary';
 import { compileProject, type GeneratorRegistry } from '@/lib/wiki/compile';
@@ -108,6 +109,37 @@ export async function POST(request: Request) {
         data: { body: structuredNotes.summary },
       });
     }
+
+    // Step 4b: Fire-and-forget call-coach review (does not block response)
+    (async () => {
+      try {
+        const project = await prisma.project.findUnique({
+          where: { id: call.lead.projectId },
+          select: { name: true, idea: true, approach: true },
+        });
+        if (!project) return;
+        const review = await runCallCoach({
+          transcript: transcript ?? null,
+          structuredNotes: structuredNotes,
+          lead: {
+            firstName: call.lead.firstName,
+            lastName: call.lead.lastName,
+            company: call.lead.company,
+            title: call.lead.title,
+            currentStage: call.lead.currentStage,
+            conversationStage: call.lead.conversationStage,
+          },
+          project,
+          callDate: call.callDate,
+        });
+        await prisma.call.update({
+          where: { id: callId },
+          data: { coachReview: review as unknown as object },
+        });
+      } catch (err) {
+        console.error('Call coach review failed:', err);
+      }
+    })();
 
     // Step 5: Fire-and-forget summary regeneration
     const { projectId, company } = call.lead;

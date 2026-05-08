@@ -301,6 +301,7 @@ model Call {
   transcript      String?
   manualNotes     String?
   structuredNotes Json?
+  coachReview     Json?
   sentiment       CallSentiment?
   sentimentScore  Float?
   touchpointId    String?        @unique

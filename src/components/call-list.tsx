@@ -10,10 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { ChevronDown, ChevronRight, MessageSquare, Pencil, Trash2, Save, X, Loader2 } from 'lucide-react';
 import { CALL_SENTIMENT_LABELS } from '@/types';
 import type { StructuredNotes } from '@/types';
+import type { CoachReview } from '@/lib/agents/call-coach';
 import { formatDate } from '@/lib/utils';
 
 interface CallData {
   id: string;
+  leadId: string;
   title: string;
   callDate: Date;
   durationMinutes: number | null;
@@ -21,6 +23,8 @@ interface CallData {
   sentimentScore: number | null;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   structuredNotes: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  coachReview: any;
   manualNotes: string | null;
   transcript: string | null;
   audioFilePath: string | null;
@@ -46,6 +50,34 @@ export function CallList({ calls }: { calls: CallData[] }) {
   const [editManualNotes, setEditManualNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [creatingReminder, setCreatingReminder] = useState<string | null>(null);
+  const [createdReminders, setCreatedReminders] = useState<Set<string>>(new Set());
+
+  async function createReminderFor(call: CallData, index: number, description: string, suggestedDueDate?: string) {
+    const key = `${call.id}:${index}`;
+    setCreatingReminder(key);
+    try {
+      const dueDate = suggestedDueDate
+        ? new Date(suggestedDueDate)
+        : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      const res = await fetch('/api/reminders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          leadId: call.leadId,
+          title: description,
+          dueDate: dueDate.toISOString(),
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to create reminder');
+      setCreatedReminders((prev) => new Set(prev).add(key));
+      router.refresh();
+    } catch (err) {
+      console.error('Failed to create reminder:', err);
+    } finally {
+      setCreatingReminder(null);
+    }
+  }
 
   function startEditing(call: CallData) {
     const notes = call.structuredNotes as StructuredNotes | null;
@@ -275,6 +307,77 @@ export function CallList({ calls }: { calls: CallData[] }) {
                       <p className="text-sm text-muted-foreground whitespace-pre-wrap">{call.manualNotes}</p>
                     </div>
                   )}
+
+                  {(() => {
+                    const coach = call.coachReview as CoachReview | null;
+                    if (!coach) return null;
+                    const hasContent =
+                      coach.missedQuestions.length > 0 ||
+                      coach.unaddressedObjections.length > 0 ||
+                      coach.commitments.length > 0;
+                    if (!hasContent) return null;
+                    return (
+                      <div className="rounded-md border bg-muted/30 p-3 space-y-3">
+                        <h4 className="text-sm font-semibold">Coach Review</h4>
+
+                        {coach.missedQuestions.length > 0 && (
+                          <div>
+                            <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Missed Questions</h5>
+                            <ul className="text-sm list-disc pl-4 space-y-0.5">
+                              {coach.missedQuestions.map((q, i) => <li key={i}>{q}</li>)}
+                            </ul>
+                          </div>
+                        )}
+
+                        {coach.unaddressedObjections.length > 0 && (
+                          <div>
+                            <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Unaddressed Objections</h5>
+                            <ul className="text-sm space-y-1.5">
+                              {coach.unaddressedObjections.map((o, i) => (
+                                <li key={i}>
+                                  <div className="font-medium">{o.objection}</div>
+                                  <div className="text-muted-foreground">→ {o.suggestedResponse}</div>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {coach.commitments.length > 0 && (
+                          <div>
+                            <h5 className="text-xs font-medium uppercase tracking-wide text-muted-foreground mb-1">Commitments</h5>
+                            <ul className="text-sm space-y-1.5">
+                              {coach.commitments.map((c, i) => {
+                                const key = `${call.id}:${i}`;
+                                const created = createdReminders.has(key);
+                                const busy = creatingReminder === key;
+                                return (
+                                  <li key={i} className="flex items-start justify-between gap-3">
+                                    <div className="flex-1">
+                                      <div>{c.description}</div>
+                                      {c.suggestedDueDate && (
+                                        <div className="text-xs text-muted-foreground">Due: {c.suggestedDueDate}</div>
+                                      )}
+                                    </div>
+                                    <Button
+                                      size="sm"
+                                      variant={created ? 'outline' : 'default'}
+                                      disabled={busy || created}
+                                      onClick={() => createReminderFor(call, i, c.description, c.suggestedDueDate)}
+                                      className="gap-1.5 shrink-0"
+                                    >
+                                      {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                                      {created ? 'Reminder created' : 'Create reminder'}
+                                    </Button>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
 
