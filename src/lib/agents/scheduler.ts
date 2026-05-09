@@ -1,4 +1,6 @@
 import cron, { type ScheduledTask } from 'node-cron';
+import { prisma } from '../db';
+import { runPipelineHealth } from './pipeline-health';
 
 export interface ScheduledJob {
   name: string;
@@ -52,4 +54,28 @@ export function listJobs(): ScheduledJob[] {
 export function _resetForTests(): void {
   stopScheduler();
   jobs.clear();
+}
+
+export function registerPipelineHealthJob(): void {
+  if (jobs.has('pipeline-health-daily')) return;
+  registerJob({
+    name: 'pipeline-health-daily',
+    cronExpr: '0 9 * * *',
+    handler: async () => {
+      const projects = await prisma.project.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, name: true },
+      });
+      for (const project of projects) {
+        try {
+          await runPipelineHealth(project.id);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error(
+            `[scheduler] pipeline-health failed for project ${project.id} (${project.name}): ${msg}`,
+          );
+        }
+      }
+    },
+  });
 }
