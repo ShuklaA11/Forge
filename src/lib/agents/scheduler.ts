@@ -1,6 +1,7 @@
 import cron, { type ScheduledTask } from 'node-cron';
 import { prisma } from '../db';
 import { runPipelineHealth } from './pipeline-health';
+import { runIcpRefiner } from './icp-refiner';
 
 export interface ScheduledJob {
   name: string;
@@ -73,6 +74,30 @@ export function registerPipelineHealthJob(): void {
           const msg = e instanceof Error ? e.message : String(e);
           console.error(
             `[scheduler] pipeline-health failed for project ${project.id} (${project.name}): ${msg}`,
+          );
+        }
+      }
+    },
+  });
+}
+
+export function registerIcpRefinerJob(): void {
+  if (jobs.has('icp-refiner-weekly')) return;
+  registerJob({
+    name: 'icp-refiner-weekly',
+    cronExpr: '0 8 * * 1',
+    handler: async () => {
+      const projects = await prisma.project.findMany({
+        where: { status: 'ACTIVE' },
+        select: { id: true, name: true },
+      });
+      for (const project of projects) {
+        try {
+          await runIcpRefiner(project.id);
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error(
+            `[scheduler] icp-refiner failed for project ${project.id} (${project.name}): ${msg}`,
           );
         }
       }
