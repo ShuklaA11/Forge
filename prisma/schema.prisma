@@ -195,6 +195,7 @@ model Project {
   entitySnapshot   EntitySnapshot?
   notes            Note[]
   tasks            Task[]
+  metrics          Metric[]
 }
 
 model EntitySnapshot {
@@ -555,6 +556,19 @@ model Task {
 
   @@index([projectId, completed, dueAt])
   @@index([leadId])
+}
+
+model Metric {
+  id         String   @id @default(cuid())
+  projectId  String
+  name       String
+  value      Float
+  unit       String?
+  recordedAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, name, recordedAt(sort: Desc)])
 }
 
 model WikiRawSource {
