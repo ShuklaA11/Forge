@@ -4,22 +4,35 @@ import { prisma } from '@/lib/db';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Building2 } from 'lucide-react';
-import { PIPELINE_STAGE_LABELS, CONVERSATION_STAGE_LABELS } from '@/types';
+import { PIPELINE_STAGE_LABELS, CONVERSATION_STAGE_LABELS, LEAD_KIND_LABELS, LEAD_KINDS_ORDERED } from '@/types';
+import type { LeadKind } from '@prisma/client';
 import { formatRelativeDate } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { CompanyGroup } from '@/components/company-group';
 
 export default async function ProjectLeadsPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ projectId: string }>;
+  searchParams: Promise<{ kind?: string }>;
 }) {
   const { projectId } = await params;
+  const { kind: kindParam } = await searchParams;
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) notFound();
 
+  const activeKind: LeadKind | 'ALL' =
+    kindParam && (LEAD_KINDS_ORDERED as readonly string[]).includes(kindParam)
+      ? (kindParam as LeadKind)
+      : 'ALL';
+
   const leads = await prisma.lead.findMany({
-    where: { projectId, status: 'ACTIVE' },
+    where: {
+      projectId,
+      status: 'ACTIVE',
+      ...(activeKind === 'ALL' ? {} : { kind: activeKind }),
+    },
     include: {
       touchpoints: { orderBy: { sentAt: 'desc' }, take: 1 },
       _count: { select: { touchpoints: true, calls: true } },
@@ -52,6 +65,19 @@ export default async function ProjectLeadsPage({
         <Link href={`/leads/new?projectId=${projectId}`}>
           <Button><Plus className="mr-2 h-4 w-4" /> Add Lead</Button>
         </Link>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <Link href={`/projects/${projectId}/leads`}>
+          <Badge variant={activeKind === 'ALL' ? 'default' : 'outline'} className="cursor-pointer">All</Badge>
+        </Link>
+        {LEAD_KINDS_ORDERED.map((k) => (
+          <Link key={k} href={`/projects/${projectId}/leads?kind=${k}`}>
+            <Badge variant={activeKind === k ? 'default' : 'outline'} className="cursor-pointer">
+              {LEAD_KIND_LABELS[k]}
+            </Badge>
+          </Link>
+        ))}
       </div>
 
       {leads.length === 0 ? (

@@ -97,6 +97,12 @@ enum ProjectCampaignStage {
   COMPLETED
 }
 
+enum LeadKind {
+  SALES
+  INVESTOR
+  HIRE
+}
+
 enum ConversationStage {
   LEAD
   INTRO_CALL
@@ -180,6 +186,16 @@ model Project {
   wikiLintFindings WikiLintFinding[]
   agentRuns        AgentRun[]
   insights         ProjectInsight[]
+  entitySnapshot   EntitySnapshot?
+}
+
+model EntitySnapshot {
+  id          String   @id @default(cuid())
+  projectId   String   @unique
+  payload     Json
+  generatedAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model Lead {
@@ -190,6 +206,7 @@ model Lead {
   company           String
   title             String?
   role              DecisionMakerRole @default(OTHER)
+  kind              LeadKind          @default(SALES)
   email             String?
   phone             String?
   linkedinUrl       String?

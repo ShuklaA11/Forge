@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { COMPANY_SIZE_LABELS, COMPANY_TYPE_LABELS, DECISION_MAKER_LABELS, SOURCE_LABELS } from '@/types';
+import { COMPANY_SIZE_LABELS, COMPANY_TYPE_LABELS, DECISION_MAKER_LABELS, SOURCE_LABELS, LEAD_KIND_LABELS } from '@/types';
 
 // --- CSV column mapping (csv_header -> form field) ---
 const CSV_COLUMN_MAP: Record<string, string> = {
@@ -87,7 +87,7 @@ function NewLeadForm() {
   const [formData, setFormData] = useState({
     projectId: searchParams.get('projectId') || '',
     firstName: '', lastName: '', company: '', title: '',
-    role: 'OTHER', email: '', phone: '', linkedinUrl: '',
+    role: 'OTHER', kind: 'SALES', email: '', phone: '', linkedinUrl: '',
     companySize: '', companyType: '', industry: '', location: '',
     source: 'MANUAL', notes: '',
   });
@@ -366,6 +366,7 @@ function NewLeadForm() {
               <div className="space-y-2"><Label>Company</Label><Input value={formData.company} onChange={(e) => updateField('company', e.target.value)} required /></div>
               <div className="space-y-2"><Label>Title</Label><Input value={formData.title} onChange={(e) => updateField('title', e.target.value)} placeholder="e.g., VP of Operations" /></div>
             </div>
+            <div className="space-y-2"><Label>Kind</Label><Select value={formData.kind} onValueChange={(v) => updateField('kind', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(LEAD_KIND_LABELS).map(([v, l]) => (<SelectItem key={v} value={v}>{l}</SelectItem>))}</SelectContent></Select></div>
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2"><Label>Role</Label><Select value={formData.role} onValueChange={(v) => updateField('role', v)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{Object.entries(DECISION_MAKER_LABELS).map(([v, l]) => (<SelectItem key={v} value={v}>{l}</SelectItem>))}</SelectContent></Select></div>
               <div className="space-y-2"><Label>Company Size</Label><Select value={formData.companySize} onValueChange={(v) => updateField('companySize', v)}><SelectTrigger><SelectValue placeholder="Select" /></SelectTrigger><SelectContent>{Object.entries(COMPANY_SIZE_LABELS).map(([v, l]) => (<SelectItem key={v} value={v}>{l}</SelectItem>))}</SelectContent></Select></div>

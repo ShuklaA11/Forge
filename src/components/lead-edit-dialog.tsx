@@ -23,6 +23,7 @@ interface LeadEditDialogProps {
     location: string | null;
     industry: string | null;
     role: string;
+    kind: string;
     companySize: string | null;
     companyType: string | null;
     notes: string | null;
@@ -44,6 +45,7 @@ export function LeadEditDialog({ lead }: LeadEditDialogProps) {
     location: lead.location || '',
     industry: lead.industry || '',
     role: lead.role,
+    kind: lead.kind,
     companySize: lead.companySize || '',
     companyType: lead.companyType || '',
     notes: lead.notes || '',
@@ -66,6 +68,7 @@ export function LeadEditDialog({ lead }: LeadEditDialogProps) {
       location: form.location || null,
       industry: form.industry || null,
       role: form.role,
+      kind: form.kind,
       companySize: form.companySize || null,
       companyType: form.companyType || null,
       notes: form.notes || null,
@@ -133,6 +136,17 @@ export function LeadEditDialog({ lead }: LeadEditDialogProps) {
               <Label>Industry</Label>
               <Input value={form.industry} onChange={(e) => update('industry', e.target.value)} />
             </div>
+          </div>
+          <div className="space-y-1">
+            <Label>Kind</Label>
+            <Select value={form.kind} onValueChange={(v) => update('kind', v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="SALES">Sales</SelectItem>
+                <SelectItem value="INVESTOR">Investor</SelectItem>
+                <SelectItem value="HIRE">Hire</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-3 gap-3">
             <div className="space-y-1">

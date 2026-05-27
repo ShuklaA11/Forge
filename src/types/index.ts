@@ -54,6 +54,14 @@ export const PIPELINE_STAGES_ORDERED = [
   'CLOSED_LOST',
 ] as const;
 
+export const LEAD_KIND_LABELS: Record<string, string> = {
+  SALES: 'Sales',
+  INVESTOR: 'Investor',
+  HIRE: 'Hire',
+};
+
+export const LEAD_KINDS_ORDERED = ['SALES', 'INVESTOR', 'HIRE'] as const;
+
 export const COMPANY_SIZE_LABELS: Record<string, string> = {
   SIZE_1_10: '1-10',
   SIZE_11_50: '11-50',

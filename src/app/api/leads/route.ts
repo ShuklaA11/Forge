@@ -38,6 +38,7 @@ export async function POST(request: Request) {
       company: body.company,
       title: body.title || null,
       role: body.role || 'OTHER',
+      kind: body.kind || 'SALES',
       email: body.email || null,
       phone: body.phone || null,
       linkedinUrl: body.linkedinUrl || null,
