@@ -12,6 +12,10 @@ import {
   toRetrievedSources,
   type RetrievedSource,
 } from './wiki/retrieve';
+import {
+  retrieveRelevantResources,
+  formatResourcesForPrompt,
+} from './resources/retrieve';
 
 export interface LeadExpertPrompt {
   prompt: string;
@@ -148,28 +152,40 @@ ${topLeads || '  (none)'}`;
 
   // Retrieve wiki context per project (only if wikiEnabled and query is non-empty)
   const wikiSections: string[] = [];
+  const resourceSections: string[] = [];
   const allSources: RetrievedSource[] = [];
   if (query) {
     for (const project of projects) {
-      if (!project.wikiEnabled) continue;
-      const retrieved = await retrieveRelevantDocs(project.id, query, 8);
-      if (retrieved.length === 0) continue;
-      wikiSections.push(
-        `### Wiki context for "${project.name}"\n\n${formatDocsForPrompt(retrieved)}`,
-      );
-      allSources.push(...toRetrievedSources(retrieved, project.id, project.name));
+      if (project.wikiEnabled) {
+        const retrieved = await retrieveRelevantDocs(project.id, query, 8);
+        if (retrieved.length > 0) {
+          wikiSections.push(
+            `### Wiki context for "${project.name}"\n\n${formatDocsForPrompt(retrieved)}`,
+          );
+          allSources.push(...toRetrievedSources(retrieved, project.id, project.name));
+        }
+      }
+      const resources = await retrieveRelevantResources(project.id, query, 5);
+      if (resources.length > 0) {
+        resourceSections.push(
+          `### Resources for "${project.name}"\n\n${formatResourcesForPrompt(resources)}`,
+        );
+      }
     }
   }
 
   const wikiBlock = wikiSections.length > 0
     ? `\n\n## Wiki Context\n\nThe following wiki pages are most relevant to the user's question, retrieved from the project wiki. Treat these as authoritative context.\n\n${wikiSections.join('\n\n')}`
     : '';
+  const resourcesBlock = resourceSections.length > 0
+    ? `\n\n## Saved Resources\n\nLinks and articles the user explicitly saved for this project. The 'Saved note' field, where present, is the user's reason for saving.\n\n${resourceSections.join('\n\n')}`
+    : '';
 
   const prompt = `${basePrompt}
 
 ## Active Projects Context
 
-${projectSections.join('\n\n')}${wikiBlock}
+${projectSections.join('\n\n')}${wikiBlock}${resourcesBlock}
 
 Use this data to give specific, contextual advice. Reference actual lead names, companies, and pipeline positions when relevant. If recommending actions, be specific about which leads to target and why.`;
 

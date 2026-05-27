@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { runMeetingPrep, type PrepInput } from '@/lib/agents/meeting-prep';
 import { retrieveRelevantDocs } from '@/lib/wiki/retrieve';
+import { retrieveRelevantResources } from '@/lib/resources/retrieve';
 import { searchWeb } from '@/lib/agents/web-search';
 
 const TOUCHPOINT_LIMIT = 10;
 const WIKI_LIMIT = 6;
+const RESOURCE_LIMIT = 3;
 const WEB_RESULT_LIMIT = 6;
 
 export async function POST(
@@ -39,6 +41,7 @@ export async function POST(
 
     const wikiQuery = `${lead.company} ${lead.firstName} ${lead.lastName} ${lead.title ?? ''}`;
     const wikiDocs = await retrieveRelevantDocs(project.id, wikiQuery, WIKI_LIMIT);
+    const resources = await retrieveRelevantResources(project.id, wikiQuery, RESOURCE_LIMIT);
 
     const webResults = await searchWeb([`${lead.company} news`, `${lead.company} announcement`], {
       maxResultsPerQuery: 3,
@@ -66,10 +69,22 @@ export async function POST(
           notes: t.notes,
           occurredAt: t.sentAt,
         })),
-      wikiDocs: wikiDocs.map((d) => ({
-        title: d.doc.path,
-        excerpt: d.doc.content.slice(0, 600),
-      })),
+      wikiDocs: [
+        ...wikiDocs.map((d) => ({
+          title: d.doc.path,
+          excerpt: d.doc.content.slice(0, 600),
+        })),
+        ...resources.map((r) => ({
+          title: `[Resource] ${r.resource.title || r.resource.url}`,
+          excerpt: [
+            r.resource.userNote && `Saved note: ${r.resource.userNote}`,
+            r.resource.description,
+            r.resource.fetchedExcerpt?.slice(0, 600),
+          ]
+            .filter(Boolean)
+            .join('\n'),
+        })),
+      ],
       webResults: webResults.slice(0, WEB_RESULT_LIMIT).map((r) => ({
         title: r.title,
         url: r.url,

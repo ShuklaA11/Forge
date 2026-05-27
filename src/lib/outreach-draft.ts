@@ -7,6 +7,10 @@ import {
   type RetrievedSource,
 } from './wiki/retrieve';
 import {
+  retrieveRelevantResources,
+  formatResourcesForPrompt,
+} from './resources/retrieve';
+import {
   CHANNEL_LABELS,
   PIPELINE_STAGE_LABELS,
   DECISION_MAKER_LABELS,
@@ -81,16 +85,21 @@ export async function draftNextOutreach(
         })
         .join('\n');
 
-  // Wiki retrieval grounded on the lead's company (if wiki is enabled)
+  // Wiki + resource retrieval grounded on the lead's company
+  const query = `${lead.company} ${lead.industry ?? ''}`.trim();
   let wikiBlock = '';
   let sources: RetrievedSource[] = [];
   if (project.wikiEnabled) {
-    const query = `${lead.company} ${lead.industry ?? ''}`.trim();
     const retrieved = await retrieveRelevantDocs(project.id, query, WIKI_LIMIT);
     if (retrieved.length > 0) {
       wikiBlock = `\n\n## Wiki Context\n\n${formatDocsForPrompt(retrieved, 1500)}`;
       sources = toRetrievedSources(retrieved, project.id, project.name);
     }
+  }
+  let resourcesBlock = '';
+  const resources = await retrieveRelevantResources(project.id, query, 3);
+  if (resources.length > 0) {
+    resourcesBlock = `\n\n## Saved Resources\n\n${formatResourcesForPrompt(resources, 800)}`;
   }
 
   const stepLabel = `Step ${sequence.currentStep} of ${sequence.maxSteps}`;
@@ -123,7 +132,7 @@ Body:
 
 ## Touchpoint History (most recent first)
 
-${historyStr}${wikiBlock}
+${historyStr}${wikiBlock}${resourcesBlock}
 
 Write the next outreach message now.`;
 
