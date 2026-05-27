@@ -18,6 +18,7 @@ import { LeadEditDialog } from '@/components/lead-edit-dialog';
 import { ReminderSection } from '@/components/reminder-form';
 import { SequenceControl } from '@/components/sequence-control';
 import { InboundTriageActions } from '@/components/inbound-triage-actions';
+import { LeadAITab } from '@/components/lead-ai-tab';
 
 export default async function LeadDetailPage({
   params,
@@ -69,6 +70,7 @@ export default async function LeadDetailPage({
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="calls">Contacts ({lead.calls.length})</TabsTrigger>
+          <TabsTrigger value="ai">AI</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6 mt-4">
@@ -165,6 +167,14 @@ export default async function LeadDetailPage({
 
         <TabsContent value="calls" className="mt-4">
           <CallList calls={lead.calls} />
+        </TabsContent>
+
+        <TabsContent value="ai">
+          <LeadAITab
+            touchpoints={lead.touchpoints}
+            calls={lead.calls}
+            reminders={lead.reminders}
+          />
         </TabsContent>
       </Tabs>
     </div>
