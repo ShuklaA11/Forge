@@ -194,6 +194,7 @@ model Project {
   insights         ProjectInsight[]
   entitySnapshot   EntitySnapshot?
   notes            Note[]
+  tasks            Task[]
 }
 
 model EntitySnapshot {
@@ -238,6 +239,7 @@ model Lead {
   reminders        Reminder[]
   agentRuns        AgentRun[]
   linkedNotes      Note[]
+  tasks            Task[]
 
   @@index([projectId])
   @@index([priorityScore(sort: Desc)])
@@ -535,6 +537,24 @@ model Note {
   @@index([linkedLeadId])
   @@index([linkedCallId])
   @@index([linkedInsightId])
+}
+
+model Task {
+  id        String    @id @default(cuid())
+  projectId String
+  leadId    String?
+  title     String
+  notes     String?
+  dueAt     DateTime?
+  completed Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  lead    Lead?   @relation(fields: [leadId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, completed, dueAt])
+  @@index([leadId])
 }
 
 model WikiRawSource {
