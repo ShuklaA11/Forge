@@ -103,6 +103,12 @@ enum LeadKind {
   HIRE
 }
 
+enum NoteKind {
+  NOTE
+  DECISION
+  DOC_DRAFT
+}
+
 enum ConversationStage {
   LEAD
   INTRO_CALL
@@ -187,6 +193,7 @@ model Project {
   agentRuns        AgentRun[]
   insights         ProjectInsight[]
   entitySnapshot   EntitySnapshot?
+  notes            Note[]
 }
 
 model EntitySnapshot {
@@ -230,6 +237,7 @@ model Lead {
   calls            Call[]
   reminders        Reminder[]
   agentRuns        AgentRun[]
+  linkedNotes      Note[]
 
   @@index([projectId])
   @@index([priorityScore(sort: Desc)])
@@ -342,6 +350,7 @@ model Call {
   lead        Lead             @relation(fields: [leadId], references: [id], onDelete: Cascade)
   touchpoint  Touchpoint?      @relation(fields: [touchpointId], references: [id])
   annotations CallAnnotation[]
+  linkedNotes Note[]
 
   @@index([leadId])
   @@index([callDate(sort: Desc)])
@@ -498,9 +507,34 @@ model ProjectInsight {
   content     Json
   generatedAt DateTime             @default(now())
 
-  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  linkedNotes Note[]
 
   @@index([projectId, kind, generatedAt(sort: Desc)])
+}
+
+model Note {
+  id              String   @id @default(cuid())
+  projectId       String
+  kind            NoteKind @default(NOTE)
+  title           String
+  body            String
+  linkedLeadId    String?
+  linkedCallId    String?
+  linkedInsightId String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  linkedLead    Lead?           @relation(fields: [linkedLeadId], references: [id], onDelete: SetNull)
+  linkedCall    Call?           @relation(fields: [linkedCallId], references: [id], onDelete: SetNull)
+  linkedInsight ProjectInsight? @relation(fields: [linkedInsightId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, createdAt(sort: Desc)])
+  @@index([projectId, kind])
+  @@index([linkedLeadId])
+  @@index([linkedCallId])
+  @@index([linkedInsightId])
 }
 
 model WikiRawSource {

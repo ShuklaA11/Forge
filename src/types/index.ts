@@ -62,6 +62,14 @@ export const LEAD_KIND_LABELS: Record<string, string> = {
 
 export const LEAD_KINDS_ORDERED = ['SALES', 'INVESTOR', 'HIRE'] as const;
 
+export const NOTE_KIND_LABELS: Record<string, string> = {
+  NOTE: 'Note',
+  DECISION: 'Decision',
+  DOC_DRAFT: 'Doc draft',
+};
+
+export const NOTE_KINDS_ORDERED = ['NOTE', 'DECISION', 'DOC_DRAFT'] as const;
+
 export const COMPANY_SIZE_LABELS: Record<string, string> = {
   SIZE_1_10: '1-10',
   SIZE_11_50: '11-50',
