@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Send, Loader2, Trash2, Plus } from 'lucide-react';
+import { Send, Loader2, Trash2, Plus, Check, X } from 'lucide-react';
 
 interface Source {
   projectId: string;
@@ -15,6 +15,12 @@ interface Source {
   score: number;
 }
 
+interface ToolCall {
+  name: string;
+  args: unknown;
+  result: { ok: true; summary: string } | { ok: false; error: string };
+}
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -22,6 +28,7 @@ interface Message {
   createdAt: string;
   projectIds?: string[] | null;
   sources?: Source[] | null;
+  toolCalls?: ToolCall[] | null;
 }
 
 interface Conversation {
@@ -145,6 +152,7 @@ export function AssistantChat({
         content: data.response,
         createdAt: new Date().toISOString(),
         sources: data.sources ?? null,
+        toolCalls: data.toolCalls ?? null,
       };
       setMessages((prev) => [...prev, assistantMsg]);
     } catch (err) {
@@ -254,6 +262,31 @@ export function AssistantChat({
                     : 'bg-muted/40 border'
                 }`}
               >
+                {msg.role === 'assistant' && msg.toolCalls && msg.toolCalls.length > 0 && (
+                  <div className="mb-2 space-y-1">
+                    {msg.toolCalls.map((tc, i) => (
+                      <div
+                        key={i}
+                        className={`flex items-start gap-1.5 text-xs rounded px-2 py-1 ${
+                          tc.result.ok
+                            ? 'bg-green-500/10 text-green-700 dark:text-green-300'
+                            : 'bg-red-500/10 text-red-700 dark:text-red-300'
+                        }`}
+                      >
+                        {tc.result.ok ? (
+                          <Check className="size-3 mt-0.5 flex-shrink-0" />
+                        ) : (
+                          <X className="size-3 mt-0.5 flex-shrink-0" />
+                        )}
+                        <span>
+                          <span className="font-medium">{tc.name}</span>
+                          {' · '}
+                          {tc.result.ok ? tc.result.summary : tc.result.error}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
                 <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                 {msg.role === 'assistant' && msg.sources && msg.sources.length > 0 && (
                   <div className="mt-2.5 pt-2.5 border-t space-y-1">

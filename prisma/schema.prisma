@@ -327,6 +327,7 @@ model AssistantMessage {
   content        String
   projectIds     Json? // string[] of project IDs used for context
   sources        Json? // RetrievedSource[] — wiki pages used to ground this response
+  toolCalls      Json? // ToolCallRecord[] — tool invocations performed during this assistant turn
   createdAt      DateTime @default(now())
 
   conversation AssistantConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)

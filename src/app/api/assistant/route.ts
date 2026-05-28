@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { generateLLMResponseWithTools } from '@/lib/llm-agent';
+import { runAssistantWithTools } from '@/lib/llm-tool-loop';
 import { buildLeadExpertSystemPrompt } from '@/lib/lead-expert';
 
 export async function GET(request: Request) {
@@ -70,9 +71,23 @@ export async function POST(request: Request) {
       })),
     ];
 
-    const response = await generateLLMResponseWithTools(llmMessages);
+    // If exactly one project is in scope, route through the tool-use loop so the
+    // assistant can write notes/tasks/etc. Otherwise stick with the existing path.
+    let response: string;
+    let toolCalls: Array<{ name: string; args: unknown; result: { ok: boolean; summary?: string; error?: string } }> = [];
+    if (selectedProjectIds.length === 1) {
+      const result = await runAssistantWithTools(llmMessages, selectedProjectIds[0]);
+      response = result.text;
+      toolCalls = result.toolCalls.map((tc) => ({
+        name: tc.name,
+        args: tc.args,
+        result: tc.result,
+      }));
+    } else {
+      response = await generateLLMResponseWithTools(llmMessages);
+    }
 
-    // Save assistant response with grounding sources
+    // Save assistant response with grounding sources + tool calls
     await prisma.assistantMessage.create({
       data: {
         conversationId: convId,
@@ -80,6 +95,7 @@ export async function POST(request: Request) {
         content: response,
         projectIds: selectedProjectIds,
         sources: sources.length > 0 ? JSON.parse(JSON.stringify(sources)) : undefined,
+        toolCalls: toolCalls.length > 0 ? JSON.parse(JSON.stringify(toolCalls)) : undefined,
       },
     });
 
@@ -87,6 +103,7 @@ export async function POST(request: Request) {
       conversationId: convId,
       response,
       sources,
+      toolCalls,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Failed to generate response';
