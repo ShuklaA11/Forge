@@ -1,4 +1,4 @@
-# LeadFlow
+# Forge
 
 A local-first, per-project workspace for founders. Each project gets a chat-first home with a persona-aware assistant that can read your data and write notes, tasks, metrics, and saved resources directly. Sales, investor outreach, and hiring all live in the same pipeline — separated by `Lead.kind`, not separate apps.
 
@@ -133,8 +133,8 @@ Every step is independently invocable via REST endpoints under `src/app/api/`.
 ## Setup
 
 ```bash
-git clone https://github.com/ShuklaA11/LeadFlow.git
-cd LeadFlow
+git clone https://github.com/ShuklaA11/Forge.git
+cd Forge
 npm install --legacy-peer-deps
 docker compose up -d                 # PostgreSQL on :5433
 echo 'DATABASE_URL="postgresql://postgres:postgres@localhost:5433/lead_management"' > .env
