@@ -8,6 +8,7 @@ import { Plus, Users, Kanban, Search, BookOpen, ExternalLink } from 'lucide-reac
 import { PROJECT_CAMPAIGN_STAGE_LABELS } from '@/types';
 import { ProjectSettingsDialog } from '@/components/project-settings-dialog';
 import { AssistantChat } from '@/components/assistant-chat';
+import { ProjectFeed } from '@/components/project-feed';
 import { formatRelativeDate } from '@/lib/utils';
 
 export default async function ProjectDashboardPage({
@@ -146,6 +147,8 @@ export default async function ProjectDashboardPage({
               )}
             </CardContent>
           </Card>
+
+          <ProjectFeed projectId={projectId} />
         </div>
       </div>
     </div>
