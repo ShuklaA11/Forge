@@ -16,6 +16,8 @@ import {
   retrieveRelevantResources,
   formatResourcesForPrompt,
 } from './resources/retrieve';
+import { getPersona } from './personas';
+import type { AssistantPersona } from '@/types';
 
 export interface LeadExpertPrompt {
   prompt: string;
@@ -25,16 +27,12 @@ export interface LeadExpertPrompt {
 export async function buildLeadExpertSystemPrompt(
   projectIds: string[],
   query: string = '',
+  personaKey: AssistantPersona | string = 'LEAD_EXPERT',
 ): Promise<LeadExpertPrompt> {
-  const basePrompt = `You are a lead generation and sales strategy expert. You have deep knowledge of B2B outreach, pipeline management, and market positioning. You help users:
+  const persona = getPersona(personaKey);
+  const basePrompt = `You are a project assistant. You help the user with strategy, operations, and execution within the projects they've selected. Be specific, actionable, and grounded in the project data shown below. If no projects are selected, give general advice.
 
-- Develop comprehensive market approach strategies with specific targets
-- Prioritize leads based on engagement signals and fit
-- Craft outreach sequences tailored to industries and personas
-- Analyze pipeline health and identify bottlenecks
-- Suggest new lead sources and prospecting strategies
-
-Be specific, actionable, and data-driven. Reference the actual leads and project data provided below when giving advice. If no projects are selected, give general lead strategy advice.`;
+${persona.systemPromptAddendum}`;
 
   if (projectIds.length === 0) {
     return {

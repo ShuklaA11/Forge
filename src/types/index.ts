@@ -70,6 +70,24 @@ export const NOTE_KIND_LABELS: Record<string, string> = {
 
 export const NOTE_KINDS_ORDERED = ['NOTE', 'DECISION', 'DOC_DRAFT'] as const;
 
+export const ASSISTANT_PERSONAS_ORDERED = [
+  'LEAD_EXPERT',
+  'INVESTOR',
+  'HIRING',
+  'WRITER',
+  'BRAINSTORMER',
+] as const;
+
+export type AssistantPersona = (typeof ASSISTANT_PERSONAS_ORDERED)[number];
+
+export const ASSISTANT_PERSONA_LABELS: Record<AssistantPersona, string> = {
+  LEAD_EXPERT: 'Lead expert',
+  INVESTOR: 'Investor',
+  HIRING: 'Hiring',
+  WRITER: 'Writer',
+  BRAINSTORMER: 'Brainstormer',
+};
+
 export const COMPANY_SIZE_LABELS: Record<string, string> = {
   SIZE_1_10: '1-10',
   SIZE_11_50: '11-50',

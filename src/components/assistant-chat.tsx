@@ -5,6 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Send, Loader2, Trash2, Plus, Check, X } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  ASSISTANT_PERSONAS_ORDERED,
+  ASSISTANT_PERSONA_LABELS,
+  type AssistantPersona,
+} from '@/types';
 
 interface Source {
   projectId: string;
@@ -35,6 +41,7 @@ interface Conversation {
   id: string;
   title: string;
   createdAt: string;
+  persona?: AssistantPersona | string;
   messages: Message[];
 }
 
@@ -67,6 +74,7 @@ export function AssistantChat({
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
+  const [persona, setPersona] = useState<AssistantPersona>('LEAD_EXPERT');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -92,6 +100,9 @@ export function AssistantChat({
     if (data) {
       setActiveConversationId(data.id);
       setMessages(data.messages || []);
+      if (data.persona && (ASSISTANT_PERSONAS_ORDERED as readonly string[]).includes(data.persona)) {
+        setPersona(data.persona as AssistantPersona);
+      }
     }
   }
 
@@ -132,6 +143,7 @@ export function AssistantChat({
           message: userMessage,
           projectIds,
           conversationId: activeConversationId,
+          persona,
         }),
       });
 
@@ -223,11 +235,23 @@ export function AssistantChat({
       )}
 
       <div className="flex-1 flex flex-col min-w-0">
-        <div className="flex items-center gap-3 pb-3 border-b">
+        <div className="flex items-center justify-between gap-3 pb-3 border-b">
           <div>
             <h2 className="text-lg font-semibold">{headerTitle}</h2>
             {headerSubtitle && <p className="text-xs text-muted-foreground">{headerSubtitle}</p>}
           </div>
+          <Select value={persona} onValueChange={(v) => setPersona(v as AssistantPersona)}>
+            <SelectTrigger className="w-[160px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ASSISTANT_PERSONAS_ORDERED.map((p) => (
+                <SelectItem key={p} value={p} className="text-xs">
+                  {ASSISTANT_PERSONA_LABELS[p]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex-1 overflow-y-auto py-4 space-y-4">

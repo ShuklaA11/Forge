@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { generateLLMResponseWithTools } from '@/lib/llm-agent';
 import { runAssistantWithTools } from '@/lib/llm-tool-loop';
 import { buildLeadExpertSystemPrompt } from '@/lib/lead-expert';
+import { ASSISTANT_PERSONAS_ORDERED, type AssistantPersona } from '@/types';
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
@@ -25,21 +26,30 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const { message, projectIds, conversationId } = await request.json();
+    const { message, projectIds, conversationId, persona } = await request.json();
 
     if (!message || typeof message !== 'string') {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 });
     }
 
     const selectedProjectIds: string[] = projectIds || [];
+    const requestedPersona: AssistantPersona = persona && (ASSISTANT_PERSONAS_ORDERED as readonly string[]).includes(persona)
+      ? (persona as AssistantPersona)
+      : 'LEAD_EXPERT';
 
     // Get or create conversation
     let convId = conversationId;
     if (!convId) {
       const conv = await prisma.assistantConversation.create({
-        data: { title: message.slice(0, 80) },
+        data: { title: message.slice(0, 80), persona: requestedPersona },
       });
       convId = conv.id;
+    } else if (persona) {
+      // If persona was explicitly sent, update the conversation row to match
+      await prisma.assistantConversation.update({
+        where: { id: convId },
+        data: { persona: requestedPersona },
+      });
     }
 
     // Save user message
@@ -61,6 +71,7 @@ export async function POST(request: Request) {
     const { prompt: systemPrompt, sources } = await buildLeadExpertSystemPrompt(
       selectedProjectIds,
       message,
+      requestedPersona,
     );
 
     const llmMessages = [
