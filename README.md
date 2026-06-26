@@ -1,6 +1,6 @@
 # Forge
 
-A local-first, per-project workspace for founders. Each project gets a chat-first home with a persona-aware assistant that can read your data and write notes, tasks, metrics, and saved resources directly. Sales, investor outreach, and hiring all live in the same pipeline — separated by `Lead.kind`, not separate apps.
+A local-first, per-project workspace for founders. Each project gets a chat-first home with a persona-aware assistant that can read your data and write notes, tasks, metrics, and saved resources directly. Sales, investor outreach, and hiring all live in the same pipeline - separated by `Lead.kind`, not separate apps.
 
 Underneath the chat sits a versioned wiki, AI-grounded retrieval, a tool-use loop, and an evolving set of agents (lead discovery, reply triage, call coach, meeting prep, pipeline health, ICP refiner, news ingestion).
 
@@ -11,7 +11,7 @@ Underneath the chat sits a versioned wiki, AI-grounded retrieval, a tool-use loo
 ## What's in here
 
 **Per-project assistant (the headline)**
-- Chat-first project home at `/projects/[id]` — replaces the old dashboard.
+- Chat-first project home at `/projects/[id]` - replaces the old dashboard.
 - Five personas, switchable per conversation: **Lead expert · Investor · Hiring · Writer · Brainstormer**. Each has its own system-prompt addendum; tools are shared.
 - Native Anthropic tool-use loop. Tools the assistant can call directly: `create_note`, `create_task`, `record_metric`, `save_resource`. Tool calls show as breadcrumbs in the chat and persist on the message row.
 - Retrieval composes wiki docs + saved resources + project state into every turn.
@@ -20,10 +20,10 @@ Underneath the chat sits a versioned wiki, AI-grounded retrieval, a tool-use loo
 - `Note { kind: NOTE | DECISION | DOC_DRAFT }` with zero-or-one link to a lead, call, or insight.
 - `Task` (project-scoped, optional `leadId`).
 - `Metric` (append-only time series, project-scoped, named).
-- `Resource` (saved URLs with auto-fetched OG metadata, user notes, free-form tags) — feeds Assistant context via keyword retrieval alongside the wiki.
+- `Resource` (saved URLs with auto-fetched OG metadata, user notes, free-form tags) - feeds Assistant context via keyword retrieval alongside the wiki.
 
 **Pipeline** (the original spine, still here)
-- `Lead.kind = SALES | INVESTOR | HIRE` — same stage machinery for all three.
+- `Lead.kind = SALES | INVESTOR | HIRE` - same stage machinery for all three.
 - Pipeline stages and orthogonal conversation depth, scored 0–100 by a pure function.
 - Touchpoint logging across email / call / DM.
 - CSV bulk import.
@@ -56,16 +56,16 @@ Underneath the chat sits a versioned wiki, AI-grounded retrieval, a tool-use loo
 
 Things in here that aren't standard CRUD work, with file pointers:
 
-- **Anti-hallucination guardrail on LLM extraction** — proposed citations are rejected unless the URL appears verbatim in the search results we showed the model. ([`src/lib/wiki/lint/imputation.ts`](src/lib/wiki/lint/imputation.ts) — `parseProposal`)
-- **Native Anthropic tool-use loop** — multi-turn tool execution with provider fallthrough (non-Anthropic providers get plain chat). Tool calls persisted and surfaced inline in chat. ([`src/lib/llm-tool-loop.ts`](src/lib/llm-tool-loop.ts), [`src/lib/assistant-tools.ts`](src/lib/assistant-tools.ts))
-- **Persona-aware system prompts** — five personas, single registry, single prompt builder. Persona stored per conversation. ([`src/lib/personas.ts`](src/lib/personas.ts), [`src/lib/lead-expert.ts`](src/lib/lead-expert.ts))
-- **Resource retrieval composes with wiki retrieval** — same keyword-scoring shape, weighted with `userNote` highest. Wired into Assistant, outreach draft, and meeting prep. ([`src/lib/resources/retrieve.ts`](src/lib/resources/retrieve.ts))
-- **Content-hashed, versioned wiki document store** — every page is immutable, deduped by hash, with `supersededById` chaining and full history. ([`src/lib/wiki/store.ts`](src/lib/wiki/store.ts))
-- **Idempotent fact-apply** — accepting a proposal upserts a bullet under a structured `## Facts` section; re-running is a no-op, same field with a new value replaces in place. ([`src/lib/wiki/lint/imputation.ts`](src/lib/wiki/lint/imputation.ts) — `upsertFactsSection`)
-- **Pluggable search + LLM providers via DI** — `WebSearchProvider` and `LLMFn` interfaces; tests inject `StubSearchProvider` and a fake LLM. No network in the test path. ([`src/lib/wiki/lint/search.ts`](src/lib/wiki/lint/search.ts))
-- **Scope-driven incremental compile** — orchestrator supports `call`, `lead`, `company`, `topic`, `all` scopes. ([`src/lib/wiki/compile.ts`](src/lib/wiki/compile.ts))
-- **Pure-function lead scoring** — 0-100 score, weighted factors, deterministic. ([`src/lib/scoring.ts`](src/lib/scoring.ts))
-- **Best-effort OG metadata fetcher** — native fetch + regex, 5s timeout, 1MB cap, never throws. ([`src/lib/og-fetch.ts`](src/lib/og-fetch.ts))
+- **Anti-hallucination guardrail on LLM extraction** - proposed citations are rejected unless the URL appears verbatim in the search results we showed the model. ([`src/lib/wiki/lint/imputation.ts`](src/lib/wiki/lint/imputation.ts) - `parseProposal`)
+- **Native Anthropic tool-use loop** - multi-turn tool execution with provider fallthrough (non-Anthropic providers get plain chat). Tool calls persisted and surfaced inline in chat. ([`src/lib/llm-tool-loop.ts`](src/lib/llm-tool-loop.ts), [`src/lib/assistant-tools.ts`](src/lib/assistant-tools.ts))
+- **Persona-aware system prompts** - five personas, single registry, single prompt builder. Persona stored per conversation. ([`src/lib/personas.ts`](src/lib/personas.ts), [`src/lib/lead-expert.ts`](src/lib/lead-expert.ts))
+- **Resource retrieval composes with wiki retrieval** - same keyword-scoring shape, weighted with `userNote` highest. Wired into Assistant, outreach draft, and meeting prep. ([`src/lib/resources/retrieve.ts`](src/lib/resources/retrieve.ts))
+- **Content-hashed, versioned wiki document store** - every page is immutable, deduped by hash, with `supersededById` chaining and full history. ([`src/lib/wiki/store.ts`](src/lib/wiki/store.ts))
+- **Idempotent fact-apply** - accepting a proposal upserts a bullet under a structured `## Facts` section; re-running is a no-op, same field with a new value replaces in place. ([`src/lib/wiki/lint/imputation.ts`](src/lib/wiki/lint/imputation.ts) - `upsertFactsSection`)
+- **Pluggable search + LLM providers via DI** - `WebSearchProvider` and `LLMFn` interfaces; tests inject `StubSearchProvider` and a fake LLM. No network in the test path. ([`src/lib/wiki/lint/search.ts`](src/lib/wiki/lint/search.ts))
+- **Scope-driven incremental compile** - orchestrator supports `call`, `lead`, `company`, `topic`, `all` scopes. ([`src/lib/wiki/compile.ts`](src/lib/wiki/compile.ts))
+- **Pure-function lead scoring** - 0-100 score, weighted factors, deterministic. ([`src/lib/scoring.ts`](src/lib/scoring.ts))
+- **Best-effort OG metadata fetcher** - native fetch + regex, 5s timeout, 1MB cap, never throws. ([`src/lib/og-fetch.ts`](src/lib/og-fetch.ts))
 
 ---
 
@@ -144,7 +144,7 @@ npm run dev
 
 Open the dev URL → Settings → add an Anthropic or OpenAI key. Tool-use (writes from chat) currently requires Anthropic.
 
-**Tests:** `npm run test` (Vitest, no DB / network — provider stubs).
+**Tests:** `npm run test` (Vitest, no DB / network - provider stubs).
 
 **Scheduler note:** Background agents (pipeline-health, icp-refiner, news-ingest) start with the Next dev/prod server via `instrumentation.ts`. Disable with `AGENT_SCHEDULER_DISABLED=1`.
 
